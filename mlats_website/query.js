@@ -17,6 +17,13 @@ $(document).ready(function () {
   var $tableBodyEl = $('#tbody');
   var $msgEl = $('#msg');
 
+  // Selector
+      /*
+  let selector = document.createElement('option');
+  selector.value = "Country";
+  selector.innerHTML = "Select Country";
+  select.append(selector); */
+
   fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/42TotByCntry')
   .then(res => res.json())
   .then(data => {
@@ -31,6 +38,16 @@ $(document).ready(function () {
     // Do something for an error here
     console.log("Error");
   });
+
+  fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/2countries_by_tabs')
+  .then(res => res.json())
+  .then (data => {
+    for (let i = 0; i < data.length; i++){
+      for (let j = 0; j < data[i].length; j++){
+        if (data[i]){}
+      }
+    }
+  })
 
 
   // draws map with countries 
@@ -48,12 +65,15 @@ $(document).ready(function () {
         }
       }
     }
+    
+    arr.push([$('#spreadsheet-query').val()]);
     var data = google.visualization.arrayToDataTable(arr);
 
     var options = {
-      colorAxis: {colors: ['blue']},
+      colorAxis: {colors: ['#f44336']},
       backgroundColor: '#81d4fa',
-      datalessRegionColor: '#ccc'
+      datalessRegionColor: '#ccc',
+      defaultColor: 'red'
     };
 
     if (!chart) {
