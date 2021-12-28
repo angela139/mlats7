@@ -16,64 +16,67 @@ $(document).ready(function () {
   var countriesDataBy2Code = {};
   var $tableBodyEl = $('#tbody');
   var $msgEl = $('#msg');
+  var country_data = [];
 
-  // Selector
-      /*
-  let selector = document.createElement('option');
-  selector.value = "Country";
-  selector.innerHTML = "Select Country";
-  select.append(selector); */
+  // redraws map with country selected from dropdown
+  select.on('change', function(){
+    drawRegionsMap();
+  });
+
+  // creates countries selector
+  function countrySelector(countries){
+    for (let i = 0; i < countries.length; i++){
+      if (countries[i].ISOCountryName != "Total"){
+        var option = document.createElement('option');
+        option.value = countries[i].ISOTwoLetterCode;
+        option.innerHTML = countries[i].ISOCountryName;
+        select.append(option);
+      }
+    }
+  }
 
   fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/42TotByCntry')
   .then(res => res.json())
   .then(data => {
-    // creates countries selector
-  for (let i = 0; i < data.length; i++){
-    var option = document.createElement('option');
-    option.value = data[i].ISOTwoLetterCode;
-    option.innerHTML = data[i].ISOCountryName;
-    select.append(option);
-}
+      countrySelector(data);
   }).catch(err => {
     // Do something for an error here
     console.log("Error");
   });
 
-  fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/2countries_by_tabs')
-  .then(res => res.json())
-  .then (data => {
-    for (let i = 0; i < data.length; i++){
-      for (let j = 0; j < data[i].length; j++){
-        if (data[i]){}
-      }
-    }
-  })
+  // fill variable country_data with countries and their treaty info
 
+  fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/38Any2014')
+    .then(res => res.json())
+    .then (data => {
+      country_data = getDataTable(data);
+    });
 
   // draws map with countries 
+
   function drawRegionsMap() {
-    console.log('drawRegionMap', treatyList);
-    var arr = [['Country']];
-    for (var i = 0; i < treatyList.length; i++) {
-      var country = treatyList[i];
-      arr.push([country]);
-      var deps = parentDeps[country];
-      if (deps) {
-        for (var j = 0, depsSize = deps.length; j < depsSize; j ++) {
-          country = deps[j];
-          arr.push([country]);
+    var arr = [['Country', 'Value']];
+    const selected_country = $('#spreadsheet-query').val()
+    arr.push([selected_country, 0]);
+    for (let i = 0; i < country_data.length; i++) {
+      if (country_data[i].ISOTwoLetterCode == selected_country){
+        for (let j = 0; j < country_data[i].Treaties.length; j++) {
+          arr.push([country_data[i].Treaties[j], 1]);
         }
       }
     }
-    
-    arr.push([$('#spreadsheet-query').val()]);
+    console.log(arr);
     var data = google.visualization.arrayToDataTable(arr);
 
     var options = {
-      colorAxis: {colors: ['#f44336']},
+      colorAxis: {values: [0, 1], colors: ['green', '#f44336']},
       backgroundColor: '#81d4fa',
       datalessRegionColor: '#ccc',
-      defaultColor: 'red'
+      defaultColor: 'yellow',
+      legend: 'none',
+      tooltip: {
+        trigger: 'none'
+      }
     };
 
     if (!chart) {
@@ -81,6 +84,7 @@ $(document).ready(function () {
       google.visualization.events.addListener(chart, 'regionClick', onRegionClick);
     }
     chart.draw(data, options);
+
   };
 
   // selects countries
@@ -93,21 +97,29 @@ $(document).ready(function () {
   }
 
   function getDataTable(cellFeed) {
-    var rowCount = parseInt(cellFeed['gs$rowCount']['$t']);
-    var colCount = parseInt(cellFeed['gs$colCount']['$t']);
-    console.log(rowCount, colCount);
-    var table = new Array(rowCount + 2);
-    for (var i = 0; i < rowCount + 2; i++) {
-      table[i] = new Array(colCount + 2);
-    }
-    for (var i = 0, entry; entry = cellFeed.entry[i]; i++) {
-      var cell = entry['gs$cell'];
-      var row = parseInt(cell.row);
-      var col = parseInt(cell.col);
+    const country_table = [];
+    for (let i = 0; i < cellFeed.length; i++){
+      if (cellFeed[i].ISOCountryName != ""){
+        const treaty_countries = [];
+        for (const [key, value] of Object.entries(cellFeed[i])){
+          if (value == "1"){
+            treaty_countries.push(key);
+          }
+        }
+        const country_dict = {
+          ISOTwoLetterCode: cellFeed[i].ISOTwoLetterCode,
+          ISOThreeLetterCode: cellFeed[i].ISOThreeLetterCode,
+          ISOCountryName: cellFeed[i].ISOCountryName,
+          Treaties: treaty_countries
+        };
 
-      table[row][col] = cell.inputValue;
+        country_table.push(country_dict);
+      }
+
     }
-    return table;
+
+    return country_table;
+    
   }
 
   function getObjectKeys (obj) {
@@ -285,6 +297,7 @@ $(document).ready(function () {
     }
   }
 
+  
   $.get('https://spreadsheets.google.com/feeds/cells/1NR2EMNs_sHydOn4UJ4C0q6YeW7xjWFhuODUFxf5HE0U/odh6i6f/public/full?alt=json')
     .then(function (data) {
       var dataTable = getDataTable(data.feed);
@@ -293,5 +306,60 @@ $(document).ready(function () {
       fillTreaties(dataTable, 1, blats);
       fillTreaties(dataTable, 2, mlats);
       enableSelect();
-    });
+    }); 
+
 });
+
+// old code
+  /*
+  function drawRegionsMap() {
+    console.log('drawRegionMap', treatyList);
+    var arr = [['Country']];
+    for (var i = 0; i < treatyList.length; i++) {
+      var country = treatyList[i];
+      arr.push([country]);
+      var deps = parentDeps[country];
+      if (deps) {
+        for (var j = 0, depsSize = deps.length; j < depsSize; j ++) {
+          country = deps[j];
+          arr.push([country]);
+        }
+      }
+    }
+    
+    arr.push([$('#spreadsheet-query').val()]);
+    var data = google.visualization.arrayToDataTable(arr);
+
+    var options = {
+      colorAxis: {colors: ['#f44336']},
+      backgroundColor: '#81d4fa',
+      datalessRegionColor: '#ccc',
+      defaultColor: 'red'
+    };
+
+    if (!chart) {
+      chart = new google.visualization.GeoChart(document.getElementById('geochart'));
+      google.visualization.events.addListener(chart, 'regionClick', onRegionClick);
+    }
+    chart.draw(data, options);
+  }; 
+
+  
+  function getDataTable(cellFeed) {
+    var rowCount = parseInt(cellFeed['gs$rowCount']['$t']);
+    var colCount = parseInt(cellFeed['gs$colCount']['$t']);
+    var table = new Array(rowCount + 2);
+    for (var i = 0; i < rowCount + 2; i++) {
+      table[i] = new Array(colCount + 2);
+    }
+    for (var i = 0, entry; entry = cellFeed.entry[i]; i++) {
+      var cell = entry['gs$cell'];
+      var row = parseInt(cell.row);
+      var col = parseInt(cell.col);
+
+      table[row][col] = cell.inputValue;
+    }
+    return table;
+  } 
+  
+  */
