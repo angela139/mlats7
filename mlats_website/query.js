@@ -16,10 +16,17 @@ $(document).ready(function () {
   var countriesDataBy2Code = {};
   var $tableBodyEl = $('#tbody');
   var $msgEl = $('#msg');
-  var country_data = [];
+  let all_country_data = [];
+  let bilat_country_data = [];
+  let treaty_type = $('#query-type');
 
   // redraws map with country selected from dropdown
   select.on('change', function(){
+    drawRegionsMap();
+  });
+  
+  // redraws map with treaty type selected
+  treaty_type.on('change', function(){
     drawRegionsMap();
   });
 
@@ -44,18 +51,30 @@ $(document).ready(function () {
     console.log("Error");
   });
 
-  // fill variable country_data with countries and their treaty info
+  // fill variable all_country_data with countries and their treaty info
 
-  fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/38Any2014')
+  fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/39All2014')
     .then(res => res.json())
     .then (data => {
-      country_data = getDataTable(data);
+      all_country_data = getDataTable(data);
+    }).catch(err => {
+      // Do something for an error here
+      console.log("Error");
     });
 
-  // draws map with countries 
+  // fill variable bilat_country_data with countries and their bilateral treaty info
 
-  function drawRegionsMap() {
-    var arr = [['Country', 'Value']];
+  fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/412014BiLatAll')
+  .then(res => res.json())
+  .then (data => {
+    bilat_country_data = getDataTable(data);
+  }).catch(err => {
+    // Do something for an error here
+    console.log("Error");
+  });
+
+  function fillCountriestoDraw(country_data){
+    const arr = [['Country', 'Value']];
     const selected_country = $('#spreadsheet-query').val()
     arr.push([selected_country, 0]);
     for (let i = 0; i < country_data.length; i++) {
@@ -65,18 +84,27 @@ $(document).ready(function () {
         }
       }
     }
-    console.log(arr);
-    var data = google.visualization.arrayToDataTable(arr);
+    
+    return arr;
+  }
+
+  // draws map with countries 
+
+  function drawRegionsMap() {
+    var data;
+    if (treaty_type.val() == 1){
+      data = google.visualization.arrayToDataTable(fillCountriestoDraw(bilat_country_data));
+    }
+    else{
+      data = google.visualization.arrayToDataTable(fillCountriestoDraw(all_country_data));
+    }
 
     var options = {
       colorAxis: {values: [0, 1], colors: ['green', '#f44336']},
       backgroundColor: '#81d4fa',
       datalessRegionColor: '#ccc',
       defaultColor: 'yellow',
-      legend: 'none',
-      tooltip: {
-        trigger: 'none'
-      }
+      legend: 'none'
     };
 
     if (!chart) {
@@ -102,7 +130,7 @@ $(document).ready(function () {
       if (cellFeed[i].ISOCountryName != ""){
         const treaty_countries = [];
         for (const [key, value] of Object.entries(cellFeed[i])){
-          if (value == "1"){
+          if (value >= "1"){
             treaty_countries.push(key);
           }
         }
