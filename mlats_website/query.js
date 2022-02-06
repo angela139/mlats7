@@ -19,10 +19,24 @@ $(document).ready(function () {
   let all_country_data = [];
   let bilat_country_data = [];
   let treaty_type = $('#query-type');
+  let treaties_list = [];
 
   // redraws map with country selected from dropdown
   select.on('change', function(){
     drawRegionsMap();
+    // fetch multi-laterals treaty types
+
+    fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/2countries_by_tabs')
+    .then(res => res.json())
+    .then(data => {
+      treaties_list = getTreatyTypes(data, select.val());
+      displayTreaties();
+    }).catch(err => {
+      // Do something for an error here
+      console.log("Error");
+
+    });
+    
   });
   
   // redraws map with treaty type selected
@@ -75,7 +89,7 @@ $(document).ready(function () {
 
   function fillCountriestoDraw(country_data){
     const arr = [['Country', 'Value']];
-    const selected_country = $('#spreadsheet-query').val()
+    const selected_country = select.val()
     arr.push([selected_country, 0]);
     for (let i = 0; i < country_data.length; i++) {
       if (country_data[i].ISOTwoLetterCode == selected_country){
@@ -100,7 +114,7 @@ $(document).ready(function () {
     }
 
     var options = {
-      colorAxis: {values: [0, 1], colors: ['green', '#f44336']},
+      colorAxis: {values: [0, 1], colors: ['#f44336', 'green']},
       backgroundColor: '#81d4fa',
       datalessRegionColor: '#ccc',
       defaultColor: 'yellow',
@@ -120,7 +134,7 @@ $(document).ready(function () {
   function onRegionClick (e) {
     var region = e.region || '';
     console.log('regionClick', e);
-    $('#spreadsheet-query').val(region);
+    select.val(region);
     updateResultTable(region);
   }
 
@@ -149,6 +163,32 @@ $(document).ready(function () {
     return country_table;
     
   }
+
+  function getTreatyTypes(cellFeed, country_name){
+    const treaty_table = [];
+    const treaties_list = ["ASEAN", "COEBuda", "COEL", "COEMLAC", "ECOWAS", "EUMLAC", "EUScheng",
+  "EUUS", "OAS", "OECD", "UNCAC", "UNDrug", "UNTOC"];
+    for (let i = 0; i < cellFeed.length; i++){
+      for (let j = 0; j < treaties_list.length; j++){
+          if (cellFeed[i][treaties_list[j]] == country_name){
+            treaty_table.push(treaties_list[j]);
+          }
+      }
+
+    }
+    return treaty_table;
+  }
+
+  function displayTreaties(){
+      let h2 = document.getElementById('msg');
+      if (treaties_list.length == 0){
+        h2.innerHTML = "No treaties found";
+      }
+      else{
+        h2.innerHTML = "The following treaties were found: " + treaties_list.toString();
+      }
+  }
+
 
   function getObjectKeys (obj) {
     var res = [];
@@ -209,6 +249,16 @@ $(document).ready(function () {
     treatyList.push(selected);
   }
 
+  function updateSelection () {
+    var selectedIsoCode = $select.val();
+    updateResultTable(selectedIsoCode);
+  }
+
+  function enableSelect () {
+    $select.removeAttr('disabled').on('change', updateSelection);
+    $('#query-type').on('change', updateSelection);
+  }
+
   function updateResultTable (selected) {
     $tableBodyEl.empty();
     treatyList = [];
@@ -222,10 +272,10 @@ $(document).ready(function () {
     else {
       selectedCountry = selected;
     }
-
+    
     if (!(includeBlats && (selectedCountry in blats)) &&
         !(includeMlats && (selectedCountry in mlats))) {
-      $msgEl.text('No treaties returned.');
+      // $msgEl.text('No treaties returned.'); 
       $('#result-table').hide();
       if (chart) {
         drawRegionsMap();
@@ -243,35 +293,6 @@ $(document).ready(function () {
       drawRegionsMap();
     }
   }
-
-  function updateSelection () {
-    var selectedIsoCode = $select.val();
-    updateResultTable(selectedIsoCode);
-  }
-
-  function enableSelect () {
-    $select.removeAttr('disabled').on('change', updateSelection);
-    $('#query-type').on('change', updateSelection);
-  }
-
-  function fillCountries (dataTable) {
-    var countryRe = /^\((.+)\)\((.+)\)\((.+)\)$/;
-    $select.empty().append('<option>Select country</option>');
-    for (var i = 1, l = dataTable.length; i < l; i += 1) {
-      var cur = dataTable[i][3];
-      if (!cur) break;
-      var group = countryRe.exec(cur);
-      if (!group) break;
-      var code2 = group[1];
-      var name = group[3];
-      var countryData = [code2, group[2], name];
-      countriesDataBy2Code[code2] = countryData;
-      $select.append('<option value="' + code2 + '">' + name + '</option>');
-    }
-    countriesDataBy2Code['EU'] = ['EU', 'EUR', 'European Union'];
-    countriesDataBy2Code['AN'] = ['AN', 'ANT', 'Netherlands Antilles'];
-  }
-
   function parseTreatyString (treatyString) {
     treatyString = treatyString.replace(/\n+/g, '');
     var treatyRe = /^(.*)\(([^\)]*)\)\[(.+)\]$/g;
@@ -389,5 +410,23 @@ $(document).ready(function () {
     }
     return table;
   } 
+
+  function fillCountries (dataTable) {
+    var countryRe = /^\((.+)\)\((.+)\)\((.+)\)$/;
+    $select.empty().append('<option>Select country</option>');
+    for (var i = 1, l = dataTable.length; i < l; i += 1) {
+      var cur = dataTable[i][3];
+      if (!cur) break;
+      var group = countryRe.exec(cur);
+      if (!group) break;
+      var code2 = group[1];
+      var name = group[3];
+      var countryData = [code2, group[2], name];
+      countriesDataBy2Code[code2] = countryData;
+      $select.append('<option value="' + code2 + '">' + name + '</option>');
+    }
+    countriesDataBy2Code['EU'] = ['EU', 'EUR', 'European Union'];
+    countriesDataBy2Code['AN'] = ['AN', 'ANT', 'Netherlands Antilles'];
+  }
   
   */
