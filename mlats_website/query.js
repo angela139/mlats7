@@ -24,8 +24,8 @@ $(document).ready(function () {
   // redraws map with country selected from dropdown
   select.on('change', function(){
     drawRegionsMap();
+    
     // fetch multi-laterals treaty types
-
     fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/2countries_by_tabs')
     .then(res => res.json())
     .then(data => {
