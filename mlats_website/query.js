@@ -19,30 +19,61 @@ $(document).ready(function () {
   let all_country_data = [];
   let bilat_country_data = [];
   let treaty_type = $('#query-type');
-  let treaties_list = [];
+  let multi_treaties_list = [];
+  let bi_treaties_list = [];
 
   // redraws map with country selected from dropdown
-  select.on('change', function(){
+  select.change(function(){
+    findTreaty(treaty_type.val(), this.value);
     drawRegionsMap();
-    
-    // fetch multi-laterals treaty types
-    fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/2countries_by_tabs')
-    .then(res => res.json())
-    .then(data => {
-      treaties_list = getTreatyTypes(data, select.val());
-      displayTreaties();
-    }).catch(err => {
-      // Do something for an error here
-      console.log("Error");
-
-    });
     
   });
   
   // redraws map with treaty type selected
-  treaty_type.on('change', function(){
+  treaty_type.change(function(){
+    findTreaty(this.value, select.val());
     drawRegionsMap();
   });
+
+  function findTreaty(type, country){
+    if (type == 1){
+      fetch_bilaterals(country);
+    }
+    else if (type == 2){
+      fetch_multilaterals(country);
+    }
+    else {
+      fetch_bilaterals(country);
+      fetch_multilaterals(country);
+    }
+    
+    displayTreaties();
+
+  }
+
+  function fetch_multilaterals(selected_country){
+    // fetch multi-laterals treaty types
+    fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/2countries_by_tabs')
+    .then(res => res.json())
+    .then(data => {
+      multi_treaties_list = getTreatyTypes(data, selected_country, 0);
+    }).catch(err => {
+      console.log(err);
+
+    });
+  }
+
+  function fetch_bilaterals(selected_country){
+    // fetch bilateral treaty
+    fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/3BIL_countries_by_tabs')
+    .then(res => res.json())
+    .then(data => {
+      bi_treaties_list = getTreatyTypes(data, selected_country, 1);
+    }).catch(err => {
+      console.log(err);
+
+    });
+  }
 
   // creates countries selector
   function countrySelector(countries){
@@ -61,8 +92,7 @@ $(document).ready(function () {
   .then(data => {
       countrySelector(data);
   }).catch(err => {
-    // Do something for an error here
-    console.log("Error");
+    console.log(err);
   });
 
   // fill variable all_country_data with countries and their treaty info
@@ -72,8 +102,7 @@ $(document).ready(function () {
     .then (data => {
       all_country_data = getDataTable(data);
     }).catch(err => {
-      // Do something for an error here
-      console.log("Error");
+      console.log(err);
     });
 
   // fill variable bilat_country_data with countries and their bilateral treaty info
@@ -83,8 +112,7 @@ $(document).ready(function () {
   .then (data => {
     bilat_country_data = getDataTable(data);
   }).catch(err => {
-    // Do something for an error here
-    console.log("Error");
+    console.log(err);
   });
 
   function fillCountriestoDraw(country_data){
@@ -136,6 +164,7 @@ $(document).ready(function () {
     console.log('regionClick', e);
     select.val(region);
     updateResultTable(region);
+    findTreaty(treaty_type.val(), select.val());
   }
 
   function getDataTable(cellFeed) {
@@ -164,10 +193,16 @@ $(document).ready(function () {
     
   }
 
-  function getTreatyTypes(cellFeed, country_name){
+  function getTreatyTypes(cellFeed, country_name, t_type){
     const treaty_table = [];
-    const treaties_list = ["ASEAN", "COEBuda", "COEL", "COEMLAC", "ECOWAS", "EUMLAC", "EUScheng",
-  "EUUS", "OAS", "OECD", "UNCAC", "UNDrug", "UNTOC"];
+    let treaties_list = [];
+    if (t_type == 0){
+      treaties_list = ["ASEAN", "COEBuda", "COEL", "COEMLAC", "ECOWAS", "EUMLAC", "EUScheng",
+    "EUUS", "OAS", "OECD", "UNCAC", "UNDrug", "UNTOC"];
+      }
+    else {
+      treaties_list = ["ArgTIF", "AusTIF", "BrazTIF",	"CanTIF", "IndTIF", "HKTIF", "UKTIF",	"USTIF", "OECDBil", "COEBiL"];
+    }
     for (let i = 0; i < cellFeed.length; i++){
       for (let j = 0; j < treaties_list.length; j++){
           if (cellFeed[i][treaties_list[j]] == country_name){
@@ -181,12 +216,22 @@ $(document).ready(function () {
 
   function displayTreaties(){
       let h2 = document.getElementById('msg');
-      if (treaties_list.length == 0){
-        h2.innerHTML = "No treaties found";
+      let treaty_string = "The following treaties were found: ";
+
+      if (multi_treaties_list.length == 0 || bi_treaties_list.length == 0){
+        treaty_string += "None";
+      }
+      else if (treaty_type.val() == 1){
+        treaty_string += bi_treaties_list.toString();
+      }
+      else if (treaty_type.val() == 2){
+        treaty_string += multi_treaties_list.toString();
       }
       else{
-        h2.innerHTML = "The following treaties were found: " + treaties_list.toString();
+        treaty_string += multi_treaties_list.toString() + ", " + bi_treaties_list.toString();
       }
+
+      h2.innerHTML = treaty_string.replace(/,/g, ', ');
   }
 
 
