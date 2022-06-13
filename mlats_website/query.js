@@ -19,8 +19,8 @@ $(document).ready(function () {
   let all_country_data = [];
   let bilat_country_data = [];
   let treaty_type = $('#query-type');
-  let multi_treaties_list = [];
-  let bi_treaties_list = [];
+  let multi_treaties_list = {};
+  let bi_treaties_list = {};
 
   // redraws map with country selected from dropdown
   select.change(function(){
@@ -35,44 +35,62 @@ $(document).ready(function () {
     drawRegionsMap();
   });
 
-  function findTreaty(type, country){
-    if (type == 1){
-      fetch_bilaterals(country);
+  async function findTreaty(type, country){
+    if (Object.keys(multi_treaties_list).includes(country)){
+      console.log("Found");
     }
-    else if (type == 2){
-      fetch_multilaterals(country);
+    else{
+      if (type == 1){
+        await fetch_bilaterals(country);
+      }
+      else if (type == 2){
+        await fetch_multilaterals(country);
+      }
+      else {
+        await fetch_bilaterals(country);
+        await fetch_multilaterals(country);
+      }
+    }
+    displayTreaties(country);
+
+  }
+
+  async function fetch_multilaterals(selected_country){
+    // fetch multi-laterals treaty types
+    const res = await fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/2countries_by_tabs');
+    if (!res.ok) {
+      const message = `An error has occured: ${res.status}`;
+      throw new Error(message);
+    }
+    const data = await res.json();
+    let country_treaty = getTreatyTypes(data, selected_country, 0);
+    if (country_treaty.length != 0){
+      multi_treaties_list[selected_country] = country_treaty;
+    } 
+    else {
+      multi_treaties_list[selected_country] = "None";
+    }
+
+  }
+  
+
+  async function fetch_bilaterals(selected_country){
+    // fetch bilateral treaty
+    const res = await fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/3BIL_countries_by_tabs');
+    if (!res.ok) {
+      const message = `An error has occured: ${res.status}`;
+      throw new Error(message);
+    }
+    const data = await res.json();
+    let country_treaty = getTreatyTypes(data, selected_country, 1);
+    if (country_treaty.length != 0){
+      bi_treaties_list[selected_country] = country_treaty;
+      console.log(bi_treaties_list);
     }
     else {
-      fetch_bilaterals(country);
-      fetch_multilaterals(country);
+      bi_treaties_list[selected_country] = "None";
     }
-    
-    displayTreaties();
-
-  }
-
-  function fetch_multilaterals(selected_country){
-    // fetch multi-laterals treaty types
-    fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/2countries_by_tabs')
-    .then(res => res.json())
-    .then(data => {
-      multi_treaties_list = getTreatyTypes(data, selected_country, 0);
-    }).catch(err => {
-      console.log(err);
-
-    });
-  }
-
-  function fetch_bilaterals(selected_country){
-    // fetch bilateral treaty
-    fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/3BIL_countries_by_tabs')
-    .then(res => res.json())
-    .then(data => {
-      bi_treaties_list = getTreatyTypes(data, selected_country, 1);
-    }).catch(err => {
-      console.log(err);
-
-    });
+  
   }
 
   // creates countries selector
@@ -86,34 +104,23 @@ $(document).ready(function () {
       }
     }
   }
-
-  fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/42TotByCntry')
-  .then(res => res.json())
+  
+  Promise.all([
+    fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/42TotByCntry'),
+    fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/39All2014'),
+    fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/412014BiLatAll')])
+  .then(res => Promise.all(res.map(response => response.json())))
   .then(data => {
-      countrySelector(data);
+    // fill countries list
+    countrySelector(data[0]);
+    // fill variable all_country_data with countries and their treaty info
+    all_country_data = getDataTable(data[1]);
+    // fill variable bilat_country_data with countries and their bilateral treaty info
+    bilat_country_data = getDataTable(data[2]);
   }).catch(err => {
     console.log(err);
   });
 
-  // fill variable all_country_data with countries and their treaty info
-
-  fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/39All2014')
-    .then(res => res.json())
-    .then (data => {
-      all_country_data = getDataTable(data);
-    }).catch(err => {
-      console.log(err);
-    });
-
-  // fill variable bilat_country_data with countries and their bilateral treaty info
-
-  fetch('https://opensheet.vercel.app/1tbSr9BfcGrWfsaU6t-1XTeN_PH61xQDgMUmLyjkW5QQ/412014BiLatAll')
-  .then(res => res.json())
-  .then (data => {
-    bilat_country_data = getDataTable(data);
-  }).catch(err => {
-    console.log(err);
-  });
 
   function fillCountriestoDraw(country_data){
     const arr = [['Country', 'Value']];
@@ -214,21 +221,17 @@ $(document).ready(function () {
     return treaty_table;
   }
 
-  function displayTreaties(){
+  function displayTreaties(selected){
       let h2 = document.getElementById('msg');
       let treaty_string = "The following treaties were found: ";
-
-      if (multi_treaties_list.length == 0 || bi_treaties_list.length == 0){
-        treaty_string += "None";
-      }
-      else if (treaty_type.val() == 1){
-        treaty_string += bi_treaties_list.toString();
+      if (treaty_type.val() == 1){
+        treaty_string += bi_treaties_list[selected];
       }
       else if (treaty_type.val() == 2){
-        treaty_string += multi_treaties_list.toString();
+        treaty_string += multi_treaties_list[selected];
       }
       else{
-        treaty_string += multi_treaties_list.toString() + ", " + bi_treaties_list.toString();
+        treaty_string += multi_treaties_list[selected] + ", " + bi_treaties_list[selected];
       }
 
       h2.innerHTML = treaty_string.replace(/,/g, ', ');
